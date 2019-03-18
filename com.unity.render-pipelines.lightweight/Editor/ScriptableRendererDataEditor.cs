@@ -262,6 +262,7 @@ namespace UnityEditor.Rendering.LWRP
                 m_PassesList.serializedProperty.serializedObject.ApplyModifiedProperties();
                 AssetDatabase.SaveAssets();
             }
+            m_ElementSOs.Clear();
             GetElementSO(m_PassesList.index);
             CreateFoldoutBools();
             EditorUtility.SetDirty(m_RenderPasses.serializedObject.targetObject);
