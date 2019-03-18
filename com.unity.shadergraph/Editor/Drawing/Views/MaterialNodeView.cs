@@ -187,8 +187,6 @@ namespace UnityEditor.ShaderGraph.Drawing
                 // -----------------------------------------------------------------------------------
                 //titleButtonContainer.Add(m_SettingsButton);
                 //titleButtonContainer.Add(m_CollapseButton);
-
-                RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
             }
         }
 
@@ -319,6 +317,8 @@ namespace UnityEditor.ShaderGraph.Drawing
                 m_NodeSettingsView.visible = true;
 
                 m_SettingsButton.AddToClassList("clicked");
+                RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
+                OnGeometryChanged(null);
             }
             else
             {
@@ -326,6 +326,7 @@ namespace UnityEditor.ShaderGraph.Drawing
 
                 m_NodeSettingsView.visible = false;
                 m_SettingsButton.RemoveFromClassList("clicked");
+                UnregisterCallback<GeometryChangedEvent>(OnGeometryChanged);
             }
         }
 
@@ -428,11 +429,12 @@ namespace UnityEditor.ShaderGraph.Drawing
                     inputContainer.Sort((x, y) => slots.IndexOf(((ShaderPort)x).slot) - slots.IndexOf(((ShaderPort)y).slot));
                 if (outputContainer.childCount > 0)
                     outputContainer.Sort((x, y) => slots.IndexOf(((ShaderPort)x).slot) - slots.IndexOf(((ShaderPort)y).slot));
+                
+                UpdatePortInputs();
+                UpdatePortInputVisibilities();
             }
 
             RefreshExpandedState(); //This should not be needed. GraphView needs to improve the extension api here
-            UpdatePortInputs();
-            UpdatePortInputVisibilities();
 
             foreach (var listener in m_ControlItems.Children().OfType<AbstractMaterialNodeModificationListener>())
             {
@@ -464,13 +466,14 @@ namespace UnityEditor.ShaderGraph.Drawing
                 {
                     var portInputView = new PortInputView(port.slot) { style = { position = Position.Absolute } };
                     m_PortInputContainer.Add(portInputView);
-                    port.RegisterCallback<GeometryChangedEvent>(evt => UpdatePortInput((ShaderPort)evt.target));
+                    port.RegisterCallback<GeometryChangedEvent>(UpdatePortInput);
                 }
             }
         }
 
-        void UpdatePortInput(ShaderPort port)
+        void UpdatePortInput(GeometryChangedEvent evt)
         {
+            var port = (ShaderPort)evt.target;
             var inputView = m_PortInputContainer.Children().OfType<PortInputView>().First(x => Equals(x.slot, port.slot));
 
             var currentRect = new Rect(inputView.resolvedStyle.left, inputView.resolvedStyle.top, inputView.resolvedStyle.width, inputView.resolvedStyle.height);
@@ -486,17 +489,16 @@ namespace UnityEditor.ShaderGraph.Drawing
                 newHeight = Mathf.Max(newHeight, element.style.top.value.value + element.layout.height);
             if (Math.Abs(inputView.parent.style.height.value.value - newHeight) > 1e-3)
                 inputView.parent.style.height = newHeight;
+            port.UnregisterCallback<GeometryChangedEvent>(UpdatePortInput);
         }
 
         public void UpdatePortInputVisibilities()
         {
-            foreach (var portInputView in m_PortInputContainer.Children().OfType<PortInputView>())
+            foreach (var portInputView in m_PortInputContainer.Children().OfType<PortInputView>().ToList())
             {
                 var slot = portInputView.slot;
-                var oldVisibility = portInputView.visible;
-                portInputView.visible = expanded && !node.owner.GetEdges(node.GetSlotReference(slot.id)).Any();
-                if (portInputView.visible != oldVisibility)
-                    m_PortInputContainer.MarkDirtyRepaint();
+                var isVisible = expanded && !node.owner.GetEdges(node.GetSlotReference(slot.id)).Any();
+                portInputView.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
             }
         }
 
