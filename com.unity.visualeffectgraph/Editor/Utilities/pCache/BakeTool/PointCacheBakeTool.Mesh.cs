@@ -17,7 +17,8 @@ namespace UnityEditor.VFX.Utils
         {
             Sequential,
             Random,
-            RandomUniformArea
+            RandomUniformArea,
+            RandomLeaf
         }
 
         Distribution m_Distribution = Distribution.RandomUniformArea;
@@ -146,6 +147,7 @@ namespace UnityEditor.VFX.Utils
 
             public Vertex[] vertices;
             public Triangle[] triangles;
+            public Bounds bounds;
         }
 
         static MeshData ComputeDataCache(Mesh input)
@@ -199,6 +201,7 @@ namespace UnityEditor.VFX.Utils
                     c = triangles[i * 3 + 2],
                 };
             }
+            meshData.bounds = input.bounds;
             return meshData;
         }
 
@@ -238,6 +241,8 @@ namespace UnityEditor.VFX.Utils
 
         abstract class RandomPicker : Picker
         {
+            public const int MAX_LEAF_PICK_TRIES = 1000;
+
             protected RandomPicker(MeshData data, int seed) : base(data)
             {
                 m_Rand = new System.Random(seed);
@@ -249,6 +254,39 @@ namespace UnityEditor.VFX.Utils
             }
 
             protected System.Random m_Rand;
+        }
+
+
+        class RandomLeafPickerVertex : RandomPicker {
+
+            public RandomLeafPickerVertex(MeshData data, int seed) : base(data, seed)
+            {
+                Debug.Log("RandomLeafPickerVertex: fgc Version, Bounds: " + data.bounds);
+            }
+
+            public override sealed MeshData.Vertex GetNext()
+            {
+                uint tries = 0;
+                Bounds meshBound = m_cacheData.bounds;
+
+                var candidate = m_cacheData.vertices[m_Rand.Next(0, m_cacheData.vertices.Length)];
+                float dice = GetNextRandFloat() / 2f + GetNextRandFloat() / 2f; // 2d10 normal distribution
+
+                while( candidate.position.y < (meshBound.min.y + meshBound.center.y) / 2f + dice * meshBound.size.y)
+                {
+                    if (++tries > MAX_LEAF_PICK_TRIES)
+                    {
+                        Debug.LogWarning("RandomLeafPickerVertex: Picker could not find suitable candidate vertext, in " + tries + " attempts, using random pick");
+                        return candidate;
+                    }
+
+                    // try another random vertex
+                    candidate = m_cacheData.vertices[m_Rand.Next(0, m_cacheData.vertices.Length)];
+                    dice = GetNextRandFloat() / 2f + GetNextRandFloat() / 2f; // 2d10 normal distribution
+                }
+                return candidate;
+            }
+
         }
 
         class RandomPickerVertex : RandomPicker
@@ -294,6 +332,43 @@ namespace UnityEditor.VFX.Utils
                 return Interpolate(m_cacheData.triangles[index], rand);
             }
         }
+
+        class RandomLeafPickerTriange : RandomPicker
+        {
+
+            public RandomLeafPickerTriange(MeshData data, int seed) : base(data, seed)
+            {
+                Debug.Log("RandomLeafPickerTriange: fgc Version, Bounds: " + data.bounds);
+            }
+
+            public override sealed MeshData.Vertex GetNext()
+            {
+                uint tries = 0;
+
+                Bounds meshBound = m_cacheData.bounds;
+
+                var index = m_Rand.Next(0, m_cacheData.triangles.Length);
+                var rand = new Vector2(GetNextRandFloat(), GetNextRandFloat());
+                var candidate = Interpolate(m_cacheData.triangles[index], rand);
+                float dice = GetNextRandFloat() / 2f + GetNextRandFloat() / 2f; // 2d10 normal distribution
+
+                while ( candidate.position.y < (meshBound.min.y + meshBound.center.y)/2f + dice * meshBound.size.y) {
+                    if (++tries > MAX_LEAF_PICK_TRIES)
+                    {
+                        Debug.LogWarning("RandomLeafPickerTriange: Picker could not find suitable candidate vertext, in " + tries + " attempts, using random pick");
+                        return candidate;
+                    }
+
+                    index = m_Rand.Next(0, m_cacheData.triangles.Length);
+                    rand = new Vector2(GetNextRandFloat(), GetNextRandFloat());
+                    candidate = Interpolate(m_cacheData.triangles[index], rand);
+                    dice = GetNextRandFloat() / 2f + GetNextRandFloat() / 2f; // 2d10 normal distribution
+                }
+
+                return candidate;
+            }
+        }
+
 
         class RandomPickerUniformArea : RandomPicker
         {
@@ -402,6 +477,17 @@ namespace UnityEditor.VFX.Utils
             else if (m_Distribution == Distribution.RandomUniformArea)
             {
                 picker = new RandomPickerUniformArea(meshCache, m_SeedMesh);
+            }
+            else if (m_Distribution == Distribution.RandomLeaf)
+            {
+                if (m_MeshBakeMode == MeshBakeMode.Vertex)
+                {
+                    picker = new RandomLeafPickerVertex(meshCache, m_SeedMesh);
+                }
+                else if (m_MeshBakeMode == MeshBakeMode.Triangle)
+                {
+                    picker = new RandomLeafPickerTriange(meshCache, m_SeedMesh);
+                }
             }
             if (picker == null)
                 throw new InvalidOperationException("Unable to find picker");
