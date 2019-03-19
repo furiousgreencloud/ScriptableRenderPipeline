@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using UnityEngine.Rendering.LWRP;
+using UnityEngine.Rendering;
 
-namespace UnityEngine.Rendering.LWRP
+namespace UnityEngine.Experimental.Rendering.LWRP
 {
     public class RenderObjectsPass : ScriptableRenderPass
     {

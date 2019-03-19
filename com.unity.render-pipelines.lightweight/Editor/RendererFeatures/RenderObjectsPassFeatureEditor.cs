@@ -1,12 +1,13 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEditorInternal;
-using UnityEngine.Rendering.LWRP;
+using UnityEngine.Experimental.Rendering.LWRP;
 
-namespace UnityEditor.Rendering.LWRP 
+namespace UnityEditor.Experimental.Rendering.LWRP 
 {
 	[CustomPropertyDrawer(typeof(RenderObjects.RenderObjectsSettings), true)]
-    public class RenderObjectsPassFeatureEditor : PropertyDrawer
+    internal class RenderObjectsPassFeatureEditor : PropertyDrawer
     {
 	    internal class Styles
 	    {
