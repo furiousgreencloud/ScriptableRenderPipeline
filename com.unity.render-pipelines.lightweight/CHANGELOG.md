@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [5.10.0] - 2019-XX-XX
+### Added
+- Added RenderObjects feature. This feature can be added to a renderer to perform custom rendering.
+
+### Fixed
+- Fixed XR rendering issue when depth texture was required.
 
 ## [5.9.0] - 2019-03-15
 ### Fixed
